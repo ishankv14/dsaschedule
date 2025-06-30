@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSA Study Schedule Infographic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212; /* Even darker background for the page */
+            color: #e0e0e0; /* Lighter text for contrast */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #00A6FB, #00D2B8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .kpi-card {
+            background-color: #1f1f1f; /* Darker card background */
+            border-left: 4px solid #F5B700;
+            color: #e0e0e0;
+        }
+        .flow-arrow {
+            font-size: 2rem;
+            color: #F5B700;
+            line-height: 1;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 19px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #3a3a3a; /* Darker timeline line */
+        }
+        .timeline-item:last-child::before {
+            display: none;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #F5B700;
+            color: #121212; /* Darker text for dot */
+            border: 4px solid #1f1f1f; /* Darker border for dot */
+        }
+        .task-item.completed .task-text {
+            text-decoration: line-through;
+            color: #616161; /* Darker grey for completed tasks */
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 10px; /* Increased gap for more breathing room */
+        }
+        .calendar-day-header {
+            background-color: #1f1f1f; /* Darker header background */
+            color: #00A6FB;
+            font-weight: bold;
+            padding: 12px; /* More padding */
+            text-align: center;
+            border-radius: 10px; /* More rounded corners */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Stronger shadow */
+        }
+        .calendar-day-cell {
+            background-color: #1f1f1f; /* Darker cell background */
+            border-radius: 15px; /* Even more rounded corners */
+            padding: 18px; /* Increased padding */
+            min-height: 220px; /* Adjusted min-height */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: flex-start;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); /* Stronger shadow */
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .calendar-day-cell:hover {
+            transform: translateY(-8px); /* Lift more on hover */
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6); /* More pronounced shadow on hover */
+        }
+        .calendar-day-cell.empty {
+            background-color: #121212; /* Match body background for empty cells */
+            box-shadow: none;
+            border: 1px dashed #3a3a3a; /* Darker dashed border */
+        }
+        .calendar-date {
+            font-weight: bold;
+            font-size: 1.3rem; /* Larger date font */
+            color: #F5B700;
+            margin-bottom: 15px; /* More space below date */
+            align-self: flex-end;
+            background-color: #2a2a2a; /* Subtle background for date */
+            padding: 4px 8px;
+            border-radius: 8px;
+        }
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px; /* More space between tasks */
+            font-size: 1.05rem; /* Slightly larger task font */
+            padding: 8px 12px; /* More padding for tasks */
+            border-radius: 8px; /* More rounded task items */
+            width: 100%;
+            border: 1px solid transparent;
+            background-color: #2a2a2a; /* Default task background */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .task-item.task-easy {
+            background-color: rgba(0, 210, 184, 0.1); /* Lighter opacity for easier readability on dark bg */
+            border-color: #00D2B8;
+            color: #00D2B8;
+        }
+        .task-item.task-medium {
+            background-color: rgba(245, 183, 0, 0.1);
+            border-color: #F5B700;
+            color: #F5B700;
+        }
+        .task-item.task-hard {
+            background-color: rgba(220, 0, 115, 0.1);
+            border-color: #DC0073;
+            color: #DC0073;
+        }
+        .task-item input[type="checkbox"] {
+            margin-top: 5px; /* Adjust alignment */
+            flex-shrink: 0;
+            accent-color: #00A6FB;
+            transform: scale(1.1); /* Slightly larger checkbox */
+        }
+        .task-text {
+            margin-left: 12px; /* More space from checkbox */
+            flex-grow: 1;
+            line-height: 1.5; /* Better line spacing */
+        }
+        .notes-text {
+            font-size: 0.9rem; /* Slightly larger notes font */
+            color: #a0a0a0; /* Slightly darker grey for notes */
+            margin-top: auto;
+            padding-top: 12px; /* More padding */
+            border-top: 1px solid #3a3a3a; /* Darker border */
+            width: 100%;
+            line-height: 1.4;
+        }
+        .rest-day {
+            background-color: #1f1f1f;
+            border: 1px solid #00A6FB; /* Highlight rest days with blue border */
+            color: #00A6FB;
+            text-align: center;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center my-12">
+            <h1 class="text-4xl md:text-6xl font-black tracking-tight leading-tight">Master DSA Without the Burnout</h1>
+            <p class="mt-4 text-xl md:text-2xl font-light text-slate-400">A Strategic, <span class="gradient-text font-semibold">Difficulty-Balanced</span> Approach with takeUforward</p>
+        </header>
+
+        <main>
+            <section id="ecosystem" class="mb-20">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Your Complete DSA Learning Ecosystem</h2>
+                    <p class="mt-2 text-lg text-slate-400 max-w-3xl mx-auto">takeUforward provides the structured content and support needed to turn a daunting challenge into a manageable journey.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 text-center">
+                    <div class="kpi-card p-6 rounded-lg shadow-xl">
+                        <p class="text-5xl font-extrabold text-white">1000+</p>
+                        <p class="mt-2 text-lg font-semibold text-slate-300">Practice Problems</p>
+                    </div>
+                    <div class="kpi-card p-6 rounded-lg shadow-xl">
+                        <p class="text-5xl font-extrabold text-white">473+</p>
+                        <p class="mt-2 text-lg font-semibold text-slate-300">Core DSA Course Problems</p>
+                    </div>
+                    <div class="kpi-card p-6 rounded-lg shadow-xl">
+                        <p class="text-5xl font-extrabold text-white">16+</p>
+                        <p class="mt-2 text-lg font-semibold text-slate-300">Contests to Test Your Skills</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div class="bg-slate-800 p-6 rounded-lg shadow-xl">
+                        <h3 class="text-2xl font-bold text-center mb-4">A2Z Course Problem Distribution</h3>
+                        <p class="text-center text-slate-400 mb-4">The explicit difficulty labels are the key to building a balanced schedule. The A2Z course provides a rich mix of problems at every level.</p>
+                        <div class="chart-container">
+                            <canvas id="a2zDonutChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 p-6 rounded-lg shadow-xl">
+                        <h3 class="text-2xl font-bold text-center mb-4">DP Series Problem Distribution</h3>
+                        <p class="text-center text-slate-400 mb-4">Even specialized, advanced topics like Dynamic Programming are categorized, allowing for targeted, high-difficulty practice sessions.</p>
+                        <div class="chart-container">
+                            <canvas id="dpBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="logic" class="mb-20">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">The Core Scheduling Patterns</h2>
+                    <p class="mt-2 text-lg text-slate-400 max-w-3xl mx-auto">Mix and match these patterns based on your daily energy and goals to ensure consistent, sustainable progress.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                    <div class="bg-slate-800 p-6 rounded-lg shadow-lg border-t-4 border-blue-500">
+                        <p class="text-2xl font-bold">1 Easy + 1 Hard</p>
+                        <p class="mt-2 text-slate-300">Builds confidence, then pushes your limits. Perfect for balanced challenge.</p>
+                    </div>
+                    <div class="bg-slate-800 p-6 rounded-lg shadow-lg border-t-4 border-teal-400">
+                        <p class="text-2xl font-bold">1 Easy + 1 Medium</p>
+                        <p class="mt-2 text-slate-300">Ensures steady, incremental progress without overwhelming you.</p>
+                    </div>
+                    <div class="bg-slate-800 p-6 rounded-lg shadow-lg border-t-4 border-yellow-500">
+                        <p class="text-2xl font-bold">1 Medium + 1 Hard</p>
+                        <p class="mt-2 text-slate-300">Ideal for high-energy days when you're ready to tackle significant challenges.</p>
+                    </div>
+                    <div class="bg-slate-800 p-6 rounded-lg shadow-lg border-t-4 border-pink-600">
+                        <p class="text-2xl font-bold">Only 1 Hard</p>
+                        <p class="mt-2 text-slate-300">A crucial rule for when a problem is too difficult. Focus on deep understanding.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="action-plan" class="mb-20">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Your 4-Step Action Plan</h2>
+                    <p class="mt-2 text-lg text-slate-400 max-w-3xl mx-auto">Follow this process to create and maintain your personalized DSA study schedule.</p>
+                </div>
+
+                <div class="max-w-4xl mx-auto">
+                    <div class="relative pl-12 py-4 timeline-item">
+                        <div class="timeline-dot flex items-center justify-center text-2xl font-bold">1</div>
+                        <h3 class="text-2xl font-bold text-white mb-2">Inventory Your Topics</h3>
+                        <p class="text-slate-300">List all DSA topics you need to learn or revise. Use takeUforward's course syllabi as a comprehensive guide to ensure nothing is missed.</p>
+                    </div>
+                    <div class="relative pl-12 py-4 timeline-item">
+                        <div class="timeline-dot flex items-center justify-center text-2xl font-bold">2</div>
+                        <h3 class="text-2xl font-bold text-white mb-2">Categorize by Difficulty</h3>
+                        <p class="text-slate-300">Assign an 'Easy', 'Medium', or 'Hard' label to each topic or problem based on takeUforward's classification. This forms the backbone of your strategy.</p>
+                    </div>
+                    <div class="relative pl-12 py-4 timeline-item">
+                        <div class="timeline-dot flex items-center justify-center text-2xl font-bold">3</div>
+                        <h3 class="text-2xl font-bold text-white mb-2">Implement the Schedule</h3>
+                        <p class="text-slate-300">Apply the difficulty-balanced patterns to your topic list. Refer to the sample weekly schedule below for inspiration.</p>
+                    </div>
+                    <div class="relative pl-12 py-4 timeline-item">
+                        <div class="timeline-dot flex items-center justify-center text-2xl font-bold">4</div>
+                        <h3 class="text-2xl font-bold text-white mb-2">Integrate Revision & Practice</h3>
+                        <p class="text-slate-300">Your schedule isn't just for new topics. Regularly revisit old problems and participate in contests to solidify your knowledge for the long term.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sample-schedule" class="mb-20">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">Comprehensive DSA Study Calendar (July - September)</h2>
+                    <p class="mt-2 text-lg text-slate-400 max-w-3xl mx-auto">A detailed calendar applying the difficulty-balanced approach. Mark tasks complete as you go!</p>
+                </div>
+
+                <div class="bg-slate-900 p-6 rounded-lg shadow-xl border border-gray-700"> <!-- Darker background for calendar section -->
+                    <!-- Calendar Headers -->
+                    <div class="calendar-grid mb-4">
+                        <div class="calendar-day-header">Mon</div>
+                        <div class="calendar-day-header">Tue</div>
+                        <div class="calendar-day-header">Wed</div>
+                        <div class="calendar-day-header">Thu</div>
+                        <div class="calendar-day-header">Fri</div>
+                        <div class="calendar-day-header">Sat</div>
+                        <div class="calendar-day-header">Sun</div>
+                    </div>
+
+                    <!-- July 2025 -->
+                    <div class="text-center my-8">
+                        <h3 class="text-2xl font-bold text-white">July 2025</h3>
+                    </div>
+                    <div class="calendar-grid">
+                        <!-- Empty cells for days before July 4th (July 4th is a Friday) -->
+                        <div class="calendar-day-cell empty"></div> <!-- Mon -->
+                        <div class="calendar-day-cell empty"></div> <!-- Tue -->
+                        <div class="calendar-day-cell empty"></div> <!-- Wed -->
+                        <div class="calendar-day-cell empty"></div> <!-- Thu -->
+                        <!-- July 4 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 4</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Sum of first N numbers (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Hashing Theory (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Reinforce basics, conceptual.</div>
+                        </div>
+                        <!-- July 5 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 5</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Check Palindrome (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Coin Change 2 (DP)</span>
+                            </div>
+                            <div class="notes-text">Balanced challenge.</div>
+                        </div>
+                        <!-- Skipped days (July 6 to July 13) -->
+                        <div class="calendar-day-cell empty"></div> <!-- July 6 (Sun) -->
+                        <div class="calendar-day-cell empty"></div> <!-- July 7 (Mon) -->
+                        <div class="calendar-day-cell empty"></div> <!-- July 8 (Tue) -->
+                        <div class="calendar-day-cell empty"></div> <!-- July 9 (Wed) -->
+                        <div class="calendar-day-cell empty"></div> <!-- July 10 (Thu) -->
+                        <div class="calendar-day-cell empty"></div> <!-- July 11 (Fri) -->
+                        <div class="calendar-day-cell empty"></div> <!-- July 12 (Sat) -->
+                        <div class="calendar-day-cell empty"></div> <!-- July 13 (Sun) -->
+
+                        <!-- July 14 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 14</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: GCD or HCF (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Subset Sum Equal to Target (DP)</span>
+                            </div>
+                            <div class="notes-text">New week, fresh hard challenge.</div>
+                        </div>
+                        <!-- July 15 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 15</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Print all Divisors (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Selection Sort (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Focus on sorting fundamentals.</div>
+                        </div>
+                        <!-- July 16 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 16</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Counting Frequencies (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Partition Equal Subset Sum (DP)</span>
+                            </div>
+                            <div class="notes-text">Applying hashing and advanced DP.</div>
+                        </div>
+                        <!-- July 17 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 17</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Only 1 Hard: Target Sum (DP)</span>
+                            </div>
+                            <div class="notes-text">Deep dive into a complex DP problem.</div>
+                        </div>
+                        <!-- July 18 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 18</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Check for Prime (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Bubble Sort (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Reinforce number theory and sorting.</div>
+                        </div>
+                        <!-- July 19 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 19</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Fibonacci Number (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Count Subsets with Sum K (DP)</span>
+                            </div>
+                            <div class="notes-text">Classic recursion and advanced DP.</div>
+                        </div>
+                        <!-- July 20 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">July 20</div>
+                            <div class="task-item">
+                                <span class="task-text">Contest/Mock Interview / Rest</span>
+                            </div>
+                            <div class="notes-text">Apply knowledge under pressure or recharge.</div>
+                        </div>
+                        <!-- July 21 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 21</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Check Armstrong Number (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Insertion Sort (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Practice basic number properties and sorting.</div>
+                        </div>
+                        <!-- July 22 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 22</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Quick Sort (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Longest Palindromic Subsequence (DP)</span>
+                            </div>
+                            <div class="notes-text">Advanced sorting and DP.</div>
+                        </div>
+                        <!-- July 23 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 23</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Print N to 1 (Recursion)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Check if Sorted Array (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Recursion basics and array properties.</div>
+                        </div>
+                        <!-- July 24 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 24</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Minimum Path Sum (DP)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Grid-based DP.</div>
+                        </div>
+                        <!-- July 25 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 25</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Reverse an Array (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Remove Duplicates from Sorted Array (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Array manipulation practice.</div>
+                        </div>
+                        <!-- July 26 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 26</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Find Max/Min in Array (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Longest Increasing Subsequence (DP)</span>
+                            </div>
+                            <div class="notes-text">Basic array and advanced DP.</div>
+                        </div>
+                        <!-- July 27 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">July 27</div>
+                            <div class="task-item">
+                                <span class="task-text">Review Week 2 / Rest</span>
+                            </div>
+                            <div class="notes-text">Consolidate learning.</div>
+                        </div>
+                        <!-- July 28 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 28</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Check if String is Palindrome (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Rotate Array by K (A2Z)</span>
+                            </div>
+                            <div class="notes-text">String and array manipulation.</div>
+                        </div>
+                        <!-- July 29 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 29</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Majority Element (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: House Robber (DP)</span>
+                            </div>
+                            <div class="notes-text">Array properties and DP.</div>
+                        </div>
+                        <!-- July 30 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 30</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Find Nth Fibonacci (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Longest Subarray with Sum K (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Recursion and sliding window.</div>
+                        </div>
+                        <!-- July 31 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">July 31</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Buy and Sell Stock III (DP)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Complex DP on arrays.</div>
+                        </div>
+                    </div>
+
+                    <!-- August 2025 -->
+                    <div class="text-center my-8">
+                        <h3 class="text-2xl font-bold text-white">August 2025</h3>
+                    </div>
+                    <div class="calendar-grid">
+                        <!-- Aug 1 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 1</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Check if Number is Palindrome (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Two Sum (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Basic number theory and array search.</div>
+                        </div>
+                        <!-- Aug 2 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 2</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Print all Patterns (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Longest Common Substring (DP)</span>
+                            </div>
+                            <div class="notes-text">Pattern recognition and DP.</div>
+                        </div>
+                        <!-- Aug 3 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Aug 3</div>
+                            <div class="task-item">
+                                <span class="task-text">Contest/Mock Interview / Rest</span>
+                            </div>
+                            <div class="notes-text">Assess progress or recharge.</div>
+                        </div>
+                        <!-- Aug 4 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 4</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Basic Recursion Problems (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Count Inversions (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Foundational recursion and divide & conquer.</div>
+                        </div>
+                        <!-- Aug 5 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 5</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Kadane's Algorithm (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Longest Common Substring (DP)</span>
+                            </div>
+                            <div class="notes-text">Greedy approach and advanced DP.</div>
+                        </div>
+                        <!-- Aug 6 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 6</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Find Missing Number (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Merge Overlapping Intervals (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Array manipulation and interval problems.</div>
+                        </div>
+                        <!-- Aug 7 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 7</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Edit Distance (DP)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: String DP.</div>
+                        </div>
+                        <!-- Aug 8 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 8</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Check if Array is Sorted (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Set Matrix Zeroes (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Array properties and in-place modification.</div>
+                        </div>
+                        <!-- Aug 9 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 9</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Find Union of Two Sorted Arrays (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Minimum Deletions to Make Palindrome (DP)</span>
+                            </div>
+                            <div class="notes-text">Array merging and string DP.</div>
+                        </div>
+                        <!-- Aug 10 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Aug 10</div>
+                            <div class="task-item">
+                                <span class="task-text">Review July Topics / Rest</span>
+                            </div>
+                            <div class="notes-text">Consolidate July's learning.</div>
+                        </div>
+                        <!-- Aug 11 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 11</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Count Subarrays with Sum K (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Longest Palindromic Substring (DP)</span>
+                            </div>
+                            <div class="notes-text">Prefix sums and string DP.</div>
+                        </div>
+                        <!-- Aug 12 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 12</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Find Kth Permutation (Recursion)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Permutations (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Recursion and backtracking.</div>
+                        </div>
+                        <!-- Aug 13 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 13</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Palindrome Partitioning (DP)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Advanced string DP.</div>
+                        </div>
+                        <!-- Aug 14 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 14</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Stack using Arrays (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Implement Queue using Stacks (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Basic data structures.</div>
+                        </div>
+                        <!-- Aug 15 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 15</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Linked List (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Reverse Nodes in k-Group (Linked List)</span>
+                            </div>
+                            <div class="notes-text">Linked list basics and advanced manipulation.</div>
+                        </div>
+                        <!-- Aug 16 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Aug 16</div>
+                            <div class="task-item">
+                                <span class="task-text">Contest/Mock Interview / Rest</span>
+                            </div>
+                            <div class="notes-text">Apply knowledge or recharge.</div>
+                        </div>
+                        <!-- Aug 17 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Aug 17</div>
+                            <div class="task-item">
+                                <span class="task-text">Review August Topics / Rest</span>
+                            </div>
+                            <div class="notes-text">Consolidate August's learning.</div>
+                        </div>
+                        <!-- Aug 18 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 18</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Binary Tree (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Inorder Traversal (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Tree basics and traversal.</div>
+                        </div>
+                        <!-- Aug 19 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 19</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Level Order Traversal (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Max Path Sum in Binary Tree (A2Z)</span>
+                            </div>
+                            <div class="notes-text">BFS and advanced tree problems.</div>
+                        </div>
+                        <!-- Aug 20 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 20</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Graph (Adjacency List) (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: BFS Traversal (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Graph basics and traversal.</div>
+                        </div>
+                        <!-- Aug 21 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 21</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Detect Cycle in Undirected Graph (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Graph cycle detection.</div>
+                        </div>
+                        <!-- Aug 22 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 22</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Topological Sort (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Dijkstra's Algorithm (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Graph algorithms.</div>
+                        </div>
+                        <!-- Aug 23 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 23</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Trie (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Word Break (DP)</span>
+                            </div>
+                            <div class="notes-text">Trie data structure and DP.</div>
+                        </div>
+                        <!-- Aug 24 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Aug 24</div>
+                            <div class="task-item">
+                                <span class="task-text">Contest/Mock Interview / Rest</span>
+                            </div>
+                            <div class="notes-text">Apply knowledge or recharge.</div>
+                        </div>
+                        <!-- Aug 25 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 25</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Heap (Min/Max) (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Kth Largest Element in an Array (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Heap data structure and applications.</div>
+                        </div>
+                        <!-- Aug 26 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 26</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Implement Hash Map (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Design LRU Cache (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Hashing and system design.</div>
+                        </div>
+                        <!-- Aug 27 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 27</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Segment Tree (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Range Sum Query - Mutable (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Advanced data structures.</div>
+                        </div>
+                        <!-- Aug 28 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 28</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Minimum Spanning Tree (Prim's/Kruskal's) (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Graph algorithms.</div>
+                        </div>
+                        <!-- Aug 29 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 29</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Disjoint Set Union (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Number of Provinces (A2Z)</span>
+                            </div>
+                            <div class="notes-text">DSU and graph connectivity.</div>
+                        </div>
+                        <!-- Aug 30 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Aug 30</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Backtracking Basics (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: N-Queens Problem (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Backtracking and advanced recursion.</div>
+                        </div>
+                        <!-- Aug 31 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Aug 31</div>
+                            <div class="task-item">
+                                <span class="task-text">Contest/Mock Interview / Rest</span>
+                            </div>
+                            <div class="notes-text">Apply knowledge or recharge.</div>
+                        </div>
+                    </div>
+
+                    <!-- September 2025 -->
+                    <div class="text-center my-8">
+                        <h3 class="text-2xl font-bold text-white">September 2025</h3>
+                    </div>
+                    <div class="calendar-grid">
+                        <!-- Sep 1 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 1</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Bit Manipulation Basics (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Single Number (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Bitwise operations.</div>
+                        </div>
+                        <!-- Sep 2 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 2</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Power of Two (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Sum of Two Integers (A2Z)</span>
+                            </div>
+                            <div class="notes-text">More bit manipulation.</div>
+                        </div>
+                        <!-- Sep 3 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 3</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Sliding Window Basics (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Longest Substring Without Repeating Characters (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Sliding window technique.</div>
+                        </div>
+                        <!-- Sep 4 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 4</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Minimum Window Substring (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Deque + sliding window.</div>
+                        </div>
+                        <!-- Sep 5 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 5</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Two Pointers Basics (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: 3Sum (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Two pointers technique.</div>
+                        </div>
+                        <!-- Sep 6 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 6</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Binary Search Basics (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Search in Rotated Sorted Array (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Binary search and variations.</div>
+                        </div>
+                        <!-- Sep 7 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Sep 7</div>
+                            <div class="task-item">
+                                <span class="task-text">Review August Topics / Rest</span>
+                            </div>
+                            <div class="notes-text">Consolidate August's learning.</div>
+                        </div>
+                        <!-- Sep 8 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 8</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Stack using Linked List (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Valid Parentheses (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Stack applications.</div>
+                        </div>
+                        <!-- Sep 9 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 9</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Next Greater Element (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Largest Rectangle in Histogram (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Monotonic stack problems.</div>
+                        </div>
+                        <!-- Sep 10 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 10</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Queue using Arrays (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Circular Queue (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Queue implementations.</div>
+                        </div>
+                        <!-- Sep 11 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 11</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Sliding Window Maximum (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Deque + sliding window.</div>
+                        </div>
+                        <!-- Sep 12 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 12</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Doubly Linked List (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Add Two Numbers (Linked List) (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Linked list operations.</div>
+                        </div>
+                        <!-- Sep 13 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 13</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Detect Cycle in Linked List (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Merge K Sorted Lists (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Linked list cycle and merging.</div>
+                        </div>
+                        <!-- Sep 14 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Sep 14</div>
+                            <div class="task-item">
+                                <span class="task-text">Contest/Mock Interview / Rest</span>
+                            </div>
+                            <div class="notes-text">Apply knowledge or recharge.</div>
+                        </div>
+                        <!-- Sep 15 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 15</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Symmetric Tree (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Diameter of Binary Tree (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Tree properties.</div>
+                        </div>
+                        <!-- Sep 16 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 16</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Lowest Common Ancestor (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Serialize/Deserialize Binary Tree (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Tree LCA and serialization.</div>
+                        </div>
+                        <!-- Sep 17 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 17</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Clone Graph (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Number of Islands (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Graph cloning and BFS/DFS.</div>
+                        </div>
+                        <!-- Sep 18 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 18</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Alien Dictionary (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Graph topological sort.</div>
+                        </div>
+                        <!-- Sep 19 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 19</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: K-th Smallest Element in BST (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Validate Binary Search Tree (A2Z)</span>
+                            </div>
+                            <div class="notes-text">BST properties.</div>
+                        </div>
+                        <!-- Sep 20 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 20</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Min Stack (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Trapping Rain Water (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Stack applications and complex array problem.</div>
+                        </div>
+                        <!-- Sep 21 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Sep 21</div>
+                            <div class="task-item">
+                                <span class="task-text">Review September Week 1 / Rest</span>
+                            </div>
+                            <div class="notes-text">Consolidate learning.</div>
+                        </div>
+                        <!-- Sep 22 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 22</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Find Peak Element (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Find Minimum in Rotated Sorted Array (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Binary search variations.</div>
+                        </div>
+                        <!-- Sep 23 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 23</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Search a 2D Matrix (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Median of Two Sorted Arrays (A2Z)</span>
+                            </div>
+                            <div class="notes-text">2D array search and advanced merging.</div>
+                        </div>
+                        <!-- Sep 24 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 24</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Subsets (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Combination Sum (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Backtracking for combinations.</div>
+                        </div>
+                        <!-- Sep 25 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 25</div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Sudoku Solver (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Only 1 Hard: Advanced backtracking.</div>
+                        </div>
+                        <!-- Sep 26 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 26</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Hash Set (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Longest Consecutive Sequence (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Hashing and array problems.</div>
+                        </div>
+                        <!-- Sep 27 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 27</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement Binary Search Tree (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Construct Binary Tree from Preorder and Inorder Traversal (A2Z)</span>
+                            </div>
+                            <div class="notes-text">BST basics and tree construction.</div>
+                        </div>
+                        <!-- Sep 28 -->
+                        <div class="calendar-day-cell rest-day">
+                            <div class="calendar-date">Sep 28</div>
+                            <div class="task-item">
+                                <span class="task-text">Contest/Mock Interview / Rest</span>
+                            </div>
+                            <div class="notes-text">Final assessment or recharge.</div>
+                        </div>
+                        <!-- Sep 29 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 29</div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Sieve of Eratosthenes (A2Z)</span>
+                            </div>
+                            <div class="task-item task-hard">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Hard: Number of Ways to Partition a String (DP)</span>
+                            </div>
+                            <div class="notes-text">Number theory and advanced string DP.</div>
+                        </div>
+                        <!-- Sep 30 -->
+                        <div class="calendar-day-cell">
+                            <div class="calendar-date">Sep 30</div>
+                            <div class="task-item task-easy">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Easy: Implement HashMap with Chaining (A2Z)</span>
+                            </div>
+                            <div class="task-item task-medium">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 bg-slate-700 border-slate-600 rounded mr-2 cursor-pointer">
+                                <span class="task-text">Medium: Implement Trie with Prefix Search (A2Z)</span>
+                            </div>
+                            <div class="notes-text">Advanced data structure implementations.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+             <section id="roadblocks" class="mb-20">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold">What to Do When a Problem is "Too Hard"</h2>
+                    <p class="mt-2 text-lg text-slate-400 max-w-3xl mx-auto">Getting stuck is part of learning. Here’s a strategic flowchart to turn roadblocks into breakthroughs.</p>
+                </div>
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="bg-pink-600/20 border border-pink-600 text-white p-4 rounded-lg shadow-lg w-full max-w-md text-center">
+                        <h4 class="font-bold text-xl">You're Stuck on a Hard Problem</h4>
+                        <p>After 30-60 minutes of focused effort with no progress.</p>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="bg-blue-500/20 border border-blue-500 text-white p-4 rounded-lg shadow-lg w-full max-w-md text-center">
+                        <h4 class="font-bold text-xl">1. Revisit Fundamentals</h4>
+                        <p>Are you missing a prerequisite concept? Review easier problems in the same topic.</p>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                     <div class="bg-teal-400/20 border border-teal-400 text-white p-4 rounded-lg shadow-lg w-full max-w-md text-center">
+                        <h4 class="font-bold text-xl">2. Seek Targeted Help</h4>
+                        <p>Use takeUforward's AI Doubt Support or consult video/written editorials to understand the approach.</p>
+                    </div>
+                     <div class="flow-arrow">↓</div>
+                     <div class="bg-yellow-500/20 border border-yellow-500 text-white p-4 rounded-lg shadow-lg w-full max-w-md text-center">
+                        <h4 class="font-bold text-xl">3. Deeply Understand the Solution</h4>
+                        <p>Don't just copy the code. Comprehend the logic, then try to re-implement it yourself from scratch.</p>
+                    </div>
+                </div>
+            </section>
+
+
+            <footer class="text-center mt-20 py-8 border-t border-gray-700"> <!-- Darker footer border -->
+                <p class="text-2xl font-bold gradient-text">Your Path to Proficiency Starts Now</p>
+                <p class="text-slate-400 mt-2 max-w-2xl mx-auto">Consistency, strategic practice, and leveraging the right resources are your keys to success. Keep coding!</p>
+            </footer>
+
+        </main>
+    </div>
+
+    <script>
+        const wrapLabel = (label, maxLength = 16) => {
+            if (typeof label !== 'string' || label.length <= maxLength) {
+                return label;
+            }
+            const words = label.split(' ');
+            const lines = [];
+            let currentLine = '';
+            for (const word of words) {
+                if ((currentLine + ' ' + word).trim().length > maxLength) {
+                    if (currentLine) lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = (currentLine + ' ' + word).trim();
+                }
+            }
+            if (currentLine) lines.push(currentLine);
+            return lines;
+        };
+        
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+              return label.join(' ');
+            } else {
+              return label;
+            }
+        };
+
+        const chartColors = {
+            blue: '#00A6FB',
+            yellow: '#F5B700',
+            magenta: '#DC0073',
+            teal: '#00D2B8',
+            slate: '#94a3b8'
+        };
+
+        const a2zData = {
+            labels: ['Easy', 'Medium', 'Hard'],
+            datasets: [{
+                label: 'Problem Count',
+                data: [131, 187, 136],
+                backgroundColor: [chartColors.teal, chartColors.yellow, chartColors.magenta],
+                borderColor: '#1f1f1f', /* Match new card background */
+                borderWidth: 4,
+                hoverOffset: 4
+            }]
+        };
+
+        const a2zConfig = {
+            type: 'doughnut',
+            data: a2zData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: chartColors.slate,
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                           title: tooltipTitleCallback
+                        }
+                    }
+                },
+                cutout: '60%',
+            }
+        };
+
+        const dpData = {
+            labels: ['Medium Problems', 'Hard Problems'].map(l => wrapLabel(l)),
+            datasets: [{
+                label: 'Problem Count in DP Series',
+                data: [20, 36],
+                backgroundColor: [chartColors.yellow, chartColors.magenta],
+                borderColor: [chartColors.yellow, chartColors.magenta],
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        };
+
+        const dpConfig = {
+            type: 'bar',
+            data: dpData,
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#3a3a3a' /* Darker grid lines */
+                        },
+                        ticks: {
+                            color: chartColors.slate
+                        }
+                    },
+                    y: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: chartColors.slate,
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        };
+
+        window.onload = function() {
+            const a2zCtx = document.getElementById('a2zDonutChart').getContext('2d');
+            new Chart(a2zCtx, a2zConfig);
+
+            const dpCtx = document.getElementById('dpBarChart').getContext('2d');
+            new Chart(dpCtx, dpConfig);
+
+            document.querySelectorAll('.task-item input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const item = this.closest('.task-item');
+                    if (this.checked) {
+                        item.classList.add('completed');
+                    } else {
+                        item.classList.remove('completed');
+                    }
+                });
+            });
+        };
+    </script>
+</body>
+</html>
