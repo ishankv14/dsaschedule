@@ -23,12 +23,26 @@
         window.initializeFirebase = async () => {
             const loadingOverlay = document.getElementById('loading-overlay');
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+                // --- START: Replace with your actual Firebase project configuration ---
+                // Get your Firebase config from your Firebase project settings in the Firebase console.
+                // It should look something like this:
+                const firebaseConfig = {
+                    apiKey: "YOUR_API_KEY", // <--- REPLACE THIS WITH YOUR ACTUAL API KEY
+                    authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // <--- REPLACE THIS
+                    projectId: "YOUR_PROJECT_ID", // <--- REPLACE THIS
+                    storageBucket: "YOUR_PROJECT_ID.appspot.com", // <--- REPLACE THIS
+                    messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // <--- REPLACE THIS
+                    appId: "YOUR_APP_ID" // <--- REPLACE THIS
+                };
 
-                // Check if projectId is present in the config
-                if (!firebaseConfig.projectId) {
-                    throw new Error("Firebase 'projectId' is missing in the configuration. Please ensure __firebase_config is correctly set in your environment.");
+                // Use a unique string for your appId when deploying outside Canvas environment
+                const appId = "dsa-schedule-infographic-github"; // <--- You can use any unique string here
+                // --- END: Replace with your actual Firebase project configuration ---
+
+                // Check if projectId or apiKey is still the placeholder
+                if (!firebaseConfig.projectId || firebaseConfig.projectId === "YOUR_PROJECT_ID" || firebaseConfig.apiKey === "YOUR_API_KEY") {
+                    const errorMessage = "Firebase configuration is incomplete or uses placeholder values. Please replace 'YOUR_API_KEY', 'YOUR_PROJECT_ID', 'YOUR_MESSAGING_SENDER_ID', and 'YOUR_APP_ID' with your actual Firebase project details from the Firebase console.";
+                    throw new Error(errorMessage);
                 }
 
                 if (!window.firebaseApp) {
@@ -42,7 +56,8 @@
                         window.userId = user.uid;
                         console.log("Authenticated with UID:", window.userId);
                     } else {
-                        // Sign in anonymously if no token is provided or user is not signed in
+                        // When deployed on GitHub, __initial_auth_token will not be defined.
+                        // We default to anonymous sign-in in this case.
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(window.auth, __initial_auth_token);
                             window.userId = window.auth.currentUser.uid;
@@ -64,7 +79,7 @@
                 loadingOverlay.style.display = 'none'; // Ensure loading overlay is hidden on error
                 // Display an error message to the user on the UI
                 const errorMessageDiv = document.createElement('div');
-                errorMessageDiv.textContent = `Error: ${error.message}. Please check your Firebase configuration.`;
+                errorMessageDiv.textContent = `Error: ${error.message}`;
                 errorMessageDiv.style.color = 'red';
                 errorMessageDiv.style.marginTop = '20px';
                 errorMessageDiv.style.textAlign = 'center';
@@ -1195,7 +1210,8 @@
                 return;
             }
             try {
-                const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, task.id);
+                // Use the hardcoded appId for the collection path
+                const taskRef = doc(window.db, `artifacts/${appId}/users/${window.userId}/dsa_tasks`, task.id);
                 await setDoc(taskRef, task, { merge: true }); // Use merge: true to update existing fields
                 console.log("Task saved:", task.id);
             } catch (e) {
@@ -1211,7 +1227,8 @@
             }
             try {
                 // Fetch the task to ensure it exists and get its current data
-                const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, taskId);
+                // Use the hardcoded appId for the collection path
+                const taskRef = doc(window.db, `artifacts/${appId}/users/${window.userId}/dsa_tasks`, taskId);
                 const taskSnap = await getDoc(taskRef);
 
                 if (taskSnap.exists()) {
@@ -1234,7 +1251,8 @@
                 return;
             }
             try {
-                const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, taskId);
+                // Use the hardcoded appId for the collection path
+                const taskRef = doc(window.db, `artifacts/${appId}/users/${window.userId}/dsa_tasks`, taskId);
                 await updateDoc(taskRef, { completed: completedStatus });
                 console.log(`Task ${taskId} completion status updated to ${completedStatus}`);
             } catch (e) {
@@ -1253,7 +1271,8 @@
             loadingOverlay.style.display = 'flex'; // Show loading overlay
 
             try {
-                const tasksColRef = collection(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`);
+                // Use the hardcoded appId for the collection path
+                const tasksColRef = collection(window.db, `artifacts/${appId}/users/${window.userId}/dsa_tasks`);
                 const q = query(tasksColRef);
 
                 onSnapshot(q, (snapshot) => {
@@ -1290,14 +1309,15 @@
                 console.error("Firestore not initialized or user not authenticated.");
                 return;
             }
-            const tasksColRef = collection(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`);
+            // Use the hardcoded appId for the collection path
+            const tasksColRef = collection(window.db, `artifacts/${appId}/users/${window.userId}/dsa_tasks`);
             const snapshot = await getDocs(tasksColRef); // getDocs is now imported
             if (snapshot.empty) {
                 console.log("Populating initial static tasks to Firestore...");
                 const batch = writeBatch(window.db); // Get a new write batch
                 for (const date in initialStaticTasks) {
                     for (const task of initialStaticTasks[date]) {
-                        const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, task.id);
+                        const taskRef = doc(window.db, `artifacts/${appId}/users/${window.userId}/dsa_tasks`, task.id);
                         batch.set(taskRef, { ...task, date: date }); // Add each task to the batch
                     }
                 }
