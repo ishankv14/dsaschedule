@@ -7,6 +7,59 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Firebase SDK imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Only getFirestore here
+
+        // Global Firebase variables
+        window.firebaseApp = null;
+        window.db = null;
+        window.auth = null;
+        window.userId = null;
+        window.isAuthReady = false;
+
+        window.initializeFirebase = async () => {
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+                if (!window.firebaseApp) {
+                    window.firebaseApp = initializeApp(firebaseConfig);
+                    window.db = getFirestore(window.firebaseApp);
+                    window.auth = getAuth(window.firebaseApp);
+                }
+
+                onAuthStateChanged(window.auth, async (user) => {
+                    if (user) {
+                        window.userId = user.uid;
+                        console.log("Authenticated with UID:", window.userId);
+                    } else {
+                        // Sign in anonymously if no token is provided or user is not signed in
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(window.auth, __initial_auth_token);
+                            window.userId = window.auth.currentUser.uid;
+                            console.log("Signed in with custom token. UID:", window.userId);
+                        } else {
+                            await signInAnonymously(window.auth);
+                            window.userId = window.auth.currentUser.uid;
+                            console.log("Signed in anonymously. UID:", window.userId);
+                        }
+                    }
+                    window.isAuthReady = true;
+                    // Trigger calendar render after auth is ready and user ID is set
+                    window.dispatchEvent(new CustomEvent('authReady'));
+                });
+
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                // Handle error (e.g., show a message to the user)
+            }
+        };
+
+        window.initializeFirebase();
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -235,9 +288,42 @@
                 margin-left: 6px;
             }
         }
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            font-size: 1.5rem;
+            flex-direction: column;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #00A6FB;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="antialiased">
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        Loading your schedule...
+    </div>
 
     <div class="container mx-auto p-4 md:p-8">
 
@@ -352,12 +438,18 @@
                 <div class="bg-slate-900 p-6 rounded-lg shadow-xl border border-gray-700"> <!-- Darker background for calendar section -->
                     <!-- Calendar Navigation -->
                     <div class="flex justify-between items-center mb-6 calendar-navigation">
-                        <button id="prevMonth" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-md">
+                        <button id="prevBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-md">
                             &lt; Previous
                         </button>
-                        <h3 id="currentMonthYear" class="text-3xl font-bold text-white calendar-month-year"></h3>
-                        <button id="nextMonth" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-md">
+                        <h3 id="currentPeriodDisplay" class="text-3xl font-bold text-white calendar-month-year"></h3>
+                        <button id="nextBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-md">
                             Next &gt;
+                        </button>
+                        <button id="monthViewBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-md ml-2">
+                            Month View
+                        </button>
+                        <button id="weekViewBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-md ml-2">
+                            Week View
                         </button>
                     </div>
 
@@ -416,22 +508,32 @@
         </main>
     </div>
 
-    <script>
+    <script type="module">
+        import { collection, query, onSnapshot, setDoc, doc, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
         // Global variables for calendar state
         let currentMonth = 6; // 0-indexed (July is 6)
         let currentYear = 2025;
+        let currentView = 'month'; // 'month' or 'week'
+        let currentWeekStartDate = new Date(); // Will be set to the Monday of the current week
 
-        // Data structure to hold tasks
-        // Key: YYYY-MM-DD, Value: Array of task objects
-        const tasks = {
-            // July 2025
+        // Data structure to hold tasks, populated from Firestore
+        let tasks = {}; // Key:പ്പെടെ-MM-DD, Value: Array of task objects
+
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+        let draggedTask = null;
+        let draggedFromDate = null;
+
+        // Initial static tasks to populate Firestore if empty
+        const initialStaticTasks = {
             "2025-07-04": [
                 { id: "task-2025-07-04-0", text: "Easy: Sum of first N numbers (A2Z)", difficulty: "easy", completed: false },
                 { id: "task-2025-07-04-1", text: "Medium: Hashing Theory (A2Z)", difficulty: "medium", completed: false }
             ],
             "2025-07-05": [
                 { id: "task-2025-07-05-0", text: "Easy: Check Palindrome (A2Z)", difficulty: "easy", completed: false },
-                { id: "task-2025-07-05-1", text: "Hard: Coin Change 2 (DP)", difficulty: "hard", completed: false }
+                { id: "task:2025-07-05-1", text: "Hard: Coin Change 2 (DP)", difficulty: "hard", completed: false }
             ],
             "2025-07-14": [
                 { id: "task-2025-07-14-0", text: "Easy: GCD or HCF (A2Z)", difficulty: "easy", completed: false },
@@ -787,15 +889,15 @@
             ],
             "2025-10-16": [
                 { id: "task-2025-10-16-0", text: "Easy: Symmetric Tree", difficulty: "easy", completed: false },
-                { id: "task-2025-10-16-1", text: "Medium: Diameter of Binary Tree", difficulty: "medium", completed: false }
+                { id: "task-2025-10-16-1", text: "Medium: Diameter of Binary Tree (A2Z)", difficulty: "medium", completed: false }
             ],
             "2025-10-17": [
                 { id: "task-2025-10-17-0", text: "Medium: Lowest Common Ancestor", difficulty: "medium", completed: false },
-                { id: "task-2025-10-17-1", text: "Hard: Serialize/Deserialize Binary Tree", difficulty: "hard", completed: false }
+                { id: "task-2025-10-17-1", text: "Hard: Serialize/Deserialize Binary Tree (A2Z)", difficulty: "hard", completed: false }
             ],
             "2025-10-18": [
-                { id: "task-2025-10-18-0", text: "Easy: Clone Graph", difficulty: "easy", completed: false },
-                { id: "task-2025-10-18-1", text: "Medium: Number of Islands", difficulty: "medium", completed: false }
+                { id: "task-2025-10-18-0", text: "Easy: Clone Graph (A2Z)", difficulty: "easy", completed: false },
+                { id: "task-2025-10-18-1", text: "Medium: Number of Islands (A2Z)", difficulty: "medium", completed: false }
             ],
             "2025-10-19": [
                 { id: "task-2025-10-19-0", text: "Contest/Mock Interview / Rest", difficulty: "rest", completed: false }
@@ -804,42 +906,42 @@
                 { id: "task-2025-10-20-0", text: "Hard: Alien Dictionary", difficulty: "hard", completed: false }
             ],
             "2025-10-21": [
-                { id: "task-2025-10-21-0", text: "Easy: K-th Smallest Element in BST", difficulty: "easy", completed: false },
-                { id: "task-2025-10-21-1", text: "Medium: Validate Binary Search Tree", difficulty: "medium", completed: false }
+                { id: "task-2025-10-21-0", text: "Easy: K-th Smallest Element in BST (A2Z)", difficulty: "easy", completed: false },
+                { id: "task-2025-10-21-1", text: "Medium: Validate Binary Search Tree (A2Z)", difficulty: "medium", completed: false }
             ],
             "2025-10-22": [
-                { id: "task-2025-10-22-0", text: "Easy: Implement Min Stack", difficulty: "easy", completed: false },
-                { id: "task-2025-10-22-1", text: "Hard: Trapping Rain Water", difficulty: "hard", completed: false }
+                { id: "task-2025-10-22-0", text: "Easy: Implement Min Stack (A2Z)", difficulty: "easy", completed: false },
+                { id: "task-2025-10-22-1", text: "Hard: Trapping Rain Water (A2Z)", difficulty: "hard", completed: false }
             ],
             "2025-10-23": [
-                { id: "task-2025-10-23-0", text: "Easy: Find Peak Element", difficulty: "easy", completed: false },
-                { id: "task-2025-10-23-1", text: "Medium: Find Minimum in Rotated Sorted Array", difficulty: "medium", completed: false }
+                { id: "task-2025-10-23-0", text: "Easy: Find Peak Element (A2Z)", difficulty: "easy", completed: false },
+                { id: "task-2025-10-23-1", text: "Medium: Find Minimum in Rotated Sorted Array (A2Z)", difficulty: "medium", completed: false }
             ],
             "2025-10-24": [
                 { id: "task-2025-10-24-0", text: "Easy: Subsets (Backtracking)", difficulty: "easy", completed: false },
                 { id: "task-2025-10-24-1", text: "Medium: Combination Sum (Backtracking)", difficulty: "medium", completed: false }
             ],
             "2025-10-25": [
-                { id: "task-2025-10-25-0", text: "Hard: Sudoku Solver", difficulty: "hard", completed: false }
+                { id: "task-2025-10-25-0", text: "Hard: Sudoku Solver (A2Z)", difficulty: "hard", completed: false }
             ],
             "2025-10-26": [
                 { id: "task-2025-10-26-0", text: "Contest/Mock Interview / Rest", difficulty: "rest", completed: false }
             ],
             "2025-10-27": [
-                { id: "task-2025-10-27-0", text: "Easy: Implement Hash Set", difficulty: "easy", completed: false },
-                { id: "task-2025-10-27-1", text: "Medium: Longest Consecutive Sequence", difficulty: "medium", completed: false }
+                { id: "task-2025-10-27-0", text: "Easy: Implement Hash Set (A2Z)", difficulty: "easy", completed: false },
+                { id: "task-2025-10-27-1", text: "Medium: Longest Consecutive Sequence (A2Z)", difficulty: "medium", completed: false }
             ],
             "2025-10-28": [
-                { id: "task-2025-10-28-0", text: "Easy: Implement Binary Search Tree", difficulty: "easy", completed: false },
-                { id: "task-2025-10-28-1", text: "Hard: Construct Binary Tree from Preorder and Inorder Traversal", difficulty: "hard", completed: false }
+                { id: "task-2025-10-28-0", text: "Easy: Implement Binary Search Tree (A2Z)", difficulty: "easy", completed: false },
+                { id: "task-2025-10-28-1", text: "Hard: Construct Binary Tree from Preorder and Inorder Traversal (A2Z)", difficulty: "hard", completed: false }
             ],
             "2025-10-29": [
                 { id: "task-2025-10-29-0", text: "Medium: Sieve of Eratosthenes", difficulty: "medium", completed: false },
                 { id: "task-2025-10-29-1", text: "Hard: Number of Ways to Partition a String (DP)", difficulty: "hard", completed: false }
             ],
             "2025-10-30": [
-                { id: "task-2025-10-30-0", text: "Easy: Implement HashMap with Chaining", difficulty: "easy", completed: false },
-                { id: "task-2025-10-30-1", text: "Medium: Implement Trie with Prefix Search", difficulty: "medium", completed: false }
+                { id: "task-2025-10-30-0", text: "Easy: Implement HashMap with Chaining (A2Z)", difficulty: "easy", completed: false },
+                { id: "task-2025-10-30-1", text: "Medium: Implement Trie with Prefix Search (A2Z)", difficulty: "medium", completed: false }
             ],
             "2025-10-31": [
                 { id: "task-2025-10-31-0", text: "Review October Topics / Rest", difficulty: "rest", completed: false }
@@ -1066,146 +1168,317 @@
             ]
         };
 
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        // Function to save a task to Firestore
+        async function saveTaskToFirestore(task) {
+            if (!window.db || !window.userId) {
+                console.error("Firestore not initialized or user not authenticated.");
+                return;
+            }
+            try {
+                const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, task.id);
+                await setDoc(taskRef, task, { merge: true }); // Use merge: true to update existing fields
+                console.log("Task saved:", task.id);
+            } catch (e) {
+                console.error("Error saving task:", e);
+            }
+        }
 
-        let draggedTask = null;
-        let draggedFromDate = null;
+        // Function to update a task's date in Firestore
+        async function updateTaskDateInFirestore(taskId, oldDate, newDate) {
+            if (!window.db || !window.userId) {
+                console.error("Firestore not initialized or user not authenticated.");
+                return;
+            }
+            try {
+                // Fetch the task to ensure it exists and get its current data
+                const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, taskId);
+                const taskSnap = await getDoc(taskRef);
 
-        function renderCalendar(month, year) {
+                if (taskSnap.exists()) {
+                    const taskData = taskSnap.data();
+                    taskData.date = newDate; // Update the date field
+                    await setDoc(taskRef, taskData); // Save the updated task
+                    console.log(`Task ${taskId} moved from ${oldDate} to ${newDate}`);
+                } else {
+                    console.warn(`Task ${taskId} not found in Firestore.`);
+                }
+            } catch (e) {
+                console.error("Error updating task date:", e);
+            }
+        }
+
+        // Function to update a task's completion status in Firestore
+        async function updateTaskCompletionInFirestore(taskId, completedStatus) {
+            if (!window.db || !window.userId) {
+                console.error("Firestore not initialized or user not authenticated.");
+                return;
+            }
+            try {
+                const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, taskId);
+                await updateDoc(taskRef, { completed: completedStatus });
+                console.log(`Task ${taskId} completion status updated to ${completedStatus}`);
+            } catch (e) {
+                console.error("Error updating task completion:", e);
+            }
+        }
+
+        // Function to load tasks from Firestore
+        async function loadTasksFromFirestore() {
+            if (!window.db || !window.userId) {
+                console.error("Firestore not initialized or user not authenticated. Cannot load tasks.");
+                return;
+            }
+
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.style.display = 'flex'; // Show loading overlay
+
+            try {
+                const tasksColRef = collection(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`);
+                const q = query(tasksColRef);
+
+                onSnapshot(q, (snapshot) => {
+                    tasks = {}; // Clear existing tasks
+                    if (snapshot.empty) {
+                        console.log("No tasks found in Firestore. Populating with initial static data.");
+                        // If no tasks, populate with initial static data
+                        populateInitialTasks();
+                    } else {
+                        snapshot.forEach(doc => {
+                            const task = doc.data();
+                            if (!tasks[task.date]) {
+                                tasks[task.date] = [];
+                            }
+                            tasks[task.date].push(task);
+                        });
+                        console.log("Tasks loaded from Firestore:", tasks);
+                        renderCalendar(currentMonth, currentYear, currentView); // Re-render calendar after loading
+                    }
+                    loadingOverlay.style.display = 'none'; // Hide loading overlay
+                }, (error) => {
+                    console.error("Error listening to tasks:", error);
+                    loadingOverlay.style.display = 'none'; // Hide loading overlay on error
+                });
+            } catch (e) {
+                console.error("Error loading tasks:", e);
+                loadingOverlay.style.display = 'none'; // Hide loading overlay on error
+            }
+        }
+
+        // Function to populate initial tasks into Firestore if the collection is empty
+        async function populateInitialTasks() {
+            if (!window.db || !window.userId) {
+                console.error("Firestore not initialized or user not authenticated.");
+                return;
+            }
+            const tasksColRef = collection(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`);
+            const snapshot = await getDocs(tasksColRef); // getDocs is now imported
+            if (snapshot.empty) {
+                console.log("Populating initial static tasks to Firestore...");
+                for (const date in initialStaticTasks) {
+                    for (const task of initialStaticTasks[date]) {
+                        try {
+                            const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, task.id);
+                            await setDoc(taskRef, { ...task, date: date }); // Ensure date is explicitly set
+                        } catch (e) {
+                            console.error("Error adding initial task:", task.id, e);
+                        }
+                    }
+                }
+                console.log("Initial static tasks populated.");
+            }
+        }
+
+
+        function renderCalendar(month, year, viewType) {
             const calendarGrid = document.getElementById('calendarGrid');
-            const currentMonthYearHeader = document.getElementById('currentMonthYear');
+            const currentPeriodDisplay = document.getElementById('currentPeriodDisplay');
             calendarGrid.innerHTML = ''; // Clear previous days
 
-            currentMonthYearHeader.textContent = `${monthNames[month]} ${year}`;
+            // Clear existing day headers and re-add them for consistent structure
+            const existingHeaders = document.querySelectorAll('.calendar-day-header');
+            existingHeaders.forEach(header => header.remove());
 
-            const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 for Sunday, 1 for Monday
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const dayHeadersContainer = document.querySelector('.calendar-grid.mb-4');
+            const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+            daysOfWeek.forEach(dayName => {
+                const header = document.createElement('div');
+                header.classList.add('calendar-day-header');
+                header.textContent = dayName;
+                dayHeadersContainer.appendChild(header);
+            });
 
-            // Adjust firstDayOfMonth to be 0 for Monday, 6 for Sunday
-            const startDay = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
 
-            // Add empty cells for days before the 1st of the month
-            for (let i = 0; i < startDay; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.classList.add('calendar-day-cell', 'empty');
-                calendarGrid.appendChild(emptyCell);
-            }
+            if (viewType === 'month') {
+                currentPeriodDisplay.textContent = `${monthNames[month]} ${year}`;
+                calendarGrid.style.gridTemplateColumns = 'repeat(7, minmax(0, 1fr))'; // Ensure 7 columns
 
-            // Add cells for each day of the month
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const dayCell = document.createElement('div');
-                dayCell.classList.add('calendar-day-cell');
-                dayCell.setAttribute('data-date', dateString); // Store date for drag and drop
+                const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 for Sunday, 1 for Monday
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-                // Drag and drop event listeners for the day cell
-                dayCell.addEventListener('dragover', (e) => {
-                    e.preventDefault(); // Allow drop
-                    dayCell.classList.add('drag-over');
-                });
-                dayCell.addEventListener('dragleave', () => {
-                    dayCell.classList.remove('drag-over');
-                });
-                dayCell.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    dayCell.classList.remove('drag-over');
+                const startDay = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1; // Adjust to start Monday
 
-                    if (draggedTask && draggedFromDate) {
-                        const targetDate = dayCell.getAttribute('data-date');
-
-                        // Remove task from old date
-                        tasks[draggedFromDate] = tasks[draggedFromDate].filter(task => task.id !== draggedTask.id);
-                        
-                        // Add task to new date
-                        if (!tasks[targetDate]) {
-                            tasks[targetDate] = [];
-                        }
-                        tasks[targetDate].push(draggedTask);
-
-                        // Re-render the calendar to reflect changes
-                        renderCalendar(currentMonth, currentYear);
-                    }
-                });
-
-                const dateDiv = document.createElement('div');
-                dateDiv.classList.add('calendar-date');
-                dateDiv.textContent = `${monthNames[month].substring(0, 3)} ${day}`; // e.g., Jul 4
-                dayCell.appendChild(dateDiv);
-
-                const dayTasks = tasks[dateString] || [];
-                dayTasks.forEach(task => {
-                    const taskItem = document.createElement('div');
-                    taskItem.classList.add('task-item', `task-${task.difficulty}`);
-                    if (task.completed) {
-                        taskItem.classList.add('completed');
-                    }
-                    taskItem.setAttribute('draggable', 'true'); // Make task draggable
-                    taskItem.setAttribute('data-task-id', task.id); // Store task ID
-                    taskItem.setAttribute('data-original-date', dateString); // Store original date
-
-                    // Drag start event listener for the task item
-                    taskItem.addEventListener('dragstart', (e) => {
-                        draggedTask = task;
-                        draggedFromDate = dateString;
-                        e.dataTransfer.setData('text/plain', task.id); // Set data for transfer
-                        e.dataTransfer.effectAllowed = 'move';
-                    });
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.classList.add('form-checkbox', 'h-5', 'w-5', 'text-blue-600', 'bg-slate-700', 'border-slate-600', 'rounded', 'mr-2', 'cursor-pointer');
-                    checkbox.checked = task.completed;
-                    checkbox.addEventListener('change', function() {
-                        task.completed = this.checked;
-                        if (this.checked) {
-                            taskItem.classList.add('completed');
-                        } else {
-                            taskItem.classList.remove('completed');
-                        }
-                    });
-
-                    const taskTextSpan = document.createElement('span');
-                    taskTextSpan.classList.add('task-text');
-                    taskTextSpan.textContent = task.text;
-
-                    taskItem.appendChild(checkbox);
-                    taskItem.appendChild(taskTextSpan);
-                    dayCell.appendChild(taskItem);
-                });
-
-                // Add notes if present in the original structure (simplified for dynamic tasks)
-                // For simplicity, notes are not directly tied to tasks in the JS data, but can be added if needed.
-                // For now, I'll add a generic note placeholder if no specific notes are defined in tasks data.
-                if (dayTasks.length > 0 && dayTasks[0].difficulty !== 'rest') { // Only add notes if there are tasks and it's not a rest day
-                    const notesDiv = document.createElement('div');
-                    notesDiv.classList.add('notes-text');
-                    notesDiv.textContent = "Notes: Review concepts and apply strategies."; // Generic note
-                    dayCell.appendChild(notesDiv);
-                } else if (dayTasks.length > 0 && dayTasks[0].difficulty === 'rest') {
-                    dayCell.classList.add('rest-day');
+                for (let i = 0; i < startDay; i++) {
+                    const emptyCell = document.createElement('div');
+                    emptyCell.classList.add('calendar-day-cell', 'empty');
+                    calendarGrid.appendChild(emptyCell);
                 }
 
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dayCell = createDayCell(dateString, month, day);
+                    calendarGrid.appendChild(dayCell);
+                }
+            } else if (viewType === 'week') {
+                // Determine the Monday of the current week
+                let date = new Date(currentWeekStartDate);
+                let dayOfWeek = date.getDay(); // 0 for Sunday, 1 for Monday
+                let diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+                date.setDate(diff); // This is the Monday of the week
 
-                calendarGrid.appendChild(dayCell);
+                const weekEndDate = new Date(date);
+                weekEndDate.setDate(date.getDate() + 6); // Calculate Sunday of the week
+
+                currentPeriodDisplay.textContent = `Week of ${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()} - ${monthNames[weekEndDate.getMonth()]} ${weekEndDate.getDate()}, ${weekEndDate.getFullYear()}`;
+                calendarGrid.style.gridTemplateColumns = 'repeat(7, minmax(0, 1fr))'; // Still 7 columns for days of week
+
+                // Render 7 days for the week
+                for (let i = 0; i < 7; i++) {
+                    const weekDate = new Date(date);
+                    weekDate.setDate(date.getDate() + i);
+                    const dateString = `${weekDate.getFullYear()}-${String(weekDate.getMonth() + 1).padStart(2, '0')}-${String(weekDate.getDate()).padStart(2, '0')}`;
+                    const dayCell = createDayCell(dateString, weekDate.getMonth(), weekDate.getDate());
+                    calendarGrid.appendChild(dayCell);
+                }
             }
         }
 
-        function nextMonth() {
-            currentMonth++;
-            if (currentMonth > 11) {
-                currentMonth = 0;
-                currentYear++;
+        function createDayCell(dateString, month, day) {
+            const dayCell = document.createElement('div');
+            dayCell.classList.add('calendar-day-cell');
+            dayCell.setAttribute('data-date', dateString); // Store date for drag and drop
+
+            // Drag and drop event listeners for the day cell
+            dayCell.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Allow drop
+                dayCell.classList.add('drag-over');
+            });
+            dayCell.addEventListener('dragleave', () => {
+                dayCell.classList.remove('drag-over');
+            });
+            dayCell.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dayCell.classList.remove('drag-over');
+
+                if (draggedTask && draggedFromDate) {
+                    const targetDate = dayCell.getAttribute('data-date');
+                    
+                    // Update task in Firestore
+                    updateTaskDateInFirestore(draggedTask.id, draggedFromDate, targetDate);
+
+                    // Local UI update will happen via onSnapshot listener
+                    draggedTask = null;
+                    draggedFromDate = null;
+                }
+            });
+
+            const dateDiv = document.createElement('div');
+            dateDiv.classList.add('calendar-date');
+            dateDiv.textContent = `${monthNames[month].substring(0, 3)} ${day}`; // e.g., Jul 4
+            dayCell.appendChild(dateDiv);
+
+            const dayTasks = tasks[dateString] || [];
+            dayTasks.forEach(task => {
+                const taskItem = document.createElement('div');
+                taskItem.classList.add('task-item', `task-${task.difficulty}`);
+                if (task.completed) {
+                    taskItem.classList.add('completed');
+                }
+                taskItem.setAttribute('draggable', 'true'); // Make task draggable
+                taskItem.setAttribute('data-task-id', task.id); // Store task ID
+                taskItem.setAttribute('data-original-date', dateString); // Store original date for debugging/reference
+
+                // Drag start event listener for the task item
+                taskItem.addEventListener('dragstart', (e) => {
+                    draggedTask = task;
+                    draggedFromDate = dateString;
+                    e.dataTransfer.setData('text/plain', task.id); // Set data for transfer
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.classList.add('form-checkbox', 'h-5', 'w-5', 'text-blue-600', 'bg-slate-700', 'border-slate-600', 'rounded', 'mr-2', 'cursor-pointer');
+                checkbox.checked = task.completed;
+                checkbox.addEventListener('change', function() {
+                    // Update task completion in Firestore
+                    updateTaskCompletionInFirestore(task.id, this.checked);
+                    // Local UI update will happen via onSnapshot listener
+                });
+
+                const taskTextSpan = document.createElement('span');
+                taskTextSpan.classList.add('task-text');
+                taskTextSpan.textContent = task.text;
+
+                taskItem.appendChild(checkbox);
+                taskItem.appendChild(taskTextSpan);
+                dayCell.appendChild(taskItem);
+            });
+
+            // Add notes if present in the original structure (simplified for dynamic tasks)
+            if (dayTasks.length > 0 && dayTasks[0].difficulty !== 'rest') {
+                const notesDiv = document.createElement('div');
+                notesDiv.classList.add('notes-text');
+                notesDiv.textContent = "Notes: Review concepts and apply strategies."; // Generic note
+                dayCell.appendChild(notesDiv);
+            } else if (dayTasks.length > 0 && dayTasks[0].difficulty === 'rest') {
+                dayCell.classList.add('rest-day');
             }
-            renderCalendar(currentMonth, currentYear);
+
+            return dayCell;
         }
 
-        function prevMonth() {
-            currentMonth--;
-            if (currentMonth < 0) {
-                currentMonth = 11;
-                currentYear--;
+        function nextPeriod() {
+            if (currentView === 'month') {
+                currentMonth++;
+                if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
+                }
+            } else { // week view
+                currentWeekStartDate.setDate(currentWeekStartDate.getDate() + 7);
+                currentMonth = currentWeekStartDate.getMonth(); // Update month/year for display
+                currentYear = currentWeekStartDate.getFullYear();
             }
-            renderCalendar(currentMonth, currentYear);
+            renderCalendar(currentMonth, currentYear, currentView);
+        }
+
+        function prevPeriod() {
+            if (currentView === 'month') {
+                currentMonth--;
+                if (currentMonth < 0) {
+                    currentMonth = 11;
+                    currentYear--;
+                }
+            } else { // week view
+                currentWeekStartDate.setDate(currentWeekStartDate.getDate() - 7);
+                currentMonth = currentWeekStartDate.getMonth(); // Update month/year for display
+                currentYear = currentWeekStartDate.getFullYear();
+            }
+            renderCalendar(currentMonth, currentYear, currentView);
+        }
+
+        function setView(view) {
+            currentView = view;
+            // When switching to week view, ensure currentWeekStartDate is set correctly for the current month
+            if (currentView === 'week') {
+                let today = new Date(currentYear, currentMonth, 1); // Start of the current month
+                let dayOfWeek = today.getDay(); // 0 for Sunday, 1 for Monday
+                let diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+                currentWeekStartDate = new Date(today.setDate(diff));
+            } else { // Switching to month view, reset currentWeekStartDate to start of current month
+                currentWeekStartDate = new Date(currentYear, currentMonth, 1);
+            }
+            renderCalendar(currentMonth, currentYear, currentView);
         }
 
         const wrapLabel = (label, maxLength = 16) => {
@@ -1337,6 +1610,11 @@
             }
         };
 
+        window.addEventListener('authReady', () => {
+            console.log("Auth is ready. User ID:", window.userId);
+            loadTasksFromFirestore();
+        });
+
         window.onload = function() {
             const a2zCtx = document.getElementById('a2zDonutChart').getContext('2d');
             new Chart(a2zCtx, a2zConfig);
@@ -1344,10 +1622,19 @@
             const dpCtx = document.getElementById('dpBarChart').getContext('2d');
             new Chart(dpCtx, dpConfig);
 
-            document.getElementById('prevMonth').addEventListener('click', prevMonth);
-            document.getElementById('nextMonth').addEventListener('click', nextMonth);
+            document.getElementById('prevBtn').addEventListener('click', prevPeriod);
+            document.getElementById('nextBtn').addEventListener('click', nextPeriod);
 
-            renderCalendar(currentMonth, currentYear);
+            document.getElementById('monthViewBtn').addEventListener('click', () => setView('month'));
+            document.getElementById('weekViewBtn').addEventListener('click', () => setView('week'));
+
+            // Initialize currentWeekStartDate to the Monday of the current month's first week
+            let initialDate = new Date(currentYear, currentMonth, 1);
+            let dayOfWeek = initialDate.getDay(); // 0 for Sunday, 1 for Monday
+            let diff = initialDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+            currentWeekStartDate = new Date(initialDate.setDate(diff));
+
+            // Calendar rendering will be triggered by the Firestore onSnapshot listener after data loads
         };
     </script>
 </body>
