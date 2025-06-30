@@ -509,7 +509,7 @@
     </div>
 
     <script type="module">
-        import { collection, query, onSnapshot, setDoc, doc, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, onSnapshot, setDoc, doc, updateDoc, deleteDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables for calendar state
         let currentMonth = 6; // 0-indexed (July is 6)
@@ -518,7 +518,7 @@
         let currentWeekStartDate = new Date(); // Will be set to the Monday of the current week
 
         // Data structure to hold tasks, populated from Firestore
-        let tasks = {}; // Key:പ്പെടെ-MM-DD, Value: Array of task objects
+        let tasks = {}; // Key:YYYY-MM-DD, Value: Array of task objects
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -1120,7 +1120,7 @@
             ],
             "2025-12-17": [
                 { id: "task-2025-12-17-0", text: "Medium: Design a Number Container System (Data Structure)", difficulty: "medium", completed: false },
-                { id: "task-2025-12-17-1", text: "Hard: Design a Food Rating System (Data Structure/Design)", difficulty: "hard", completed: false }
+                { id: "task-22025-12-17-1", text: "Hard: Design a Food Rating System (Data Structure/Design)", difficulty: "hard", completed: false }
             ],
             "2025-12-18": [
                 { id: "task-2025-12-18-0", text: "Medium: Design a File System (Tree/Trie)", difficulty: "medium", completed: false },
