@@ -509,7 +509,7 @@
     </div>
 
     <script type="module">
-        import { collection, query, onSnapshot, setDoc, doc, updateDoc, deleteDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, onSnapshot, setDoc, doc, updateDoc, deleteDoc, getDocs, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables for calendar state
         let currentMonth = 6; // 0-indexed (July is 6)
@@ -1274,17 +1274,19 @@
             const snapshot = await getDocs(tasksColRef); // getDocs is now imported
             if (snapshot.empty) {
                 console.log("Populating initial static tasks to Firestore...");
+                const batch = writeBatch(window.db); // Get a new write batch
                 for (const date in initialStaticTasks) {
                     for (const task of initialStaticTasks[date]) {
-                        try {
-                            const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, task.id);
-                            await setDoc(taskRef, { ...task, date: date }); // Ensure date is explicitly set
-                        } catch (e) {
-                            console.error("Error adding initial task:", task.id, e);
-                        }
+                        const taskRef = doc(window.db, `artifacts/${window.appId}/users/${window.userId}/dsa_tasks`, task.id);
+                        batch.set(taskRef, { ...task, date: date }); // Add each task to the batch
                     }
                 }
-                console.log("Initial static tasks populated.");
+                try {
+                    await batch.commit(); // Commit the batch
+                    console.log("Initial static tasks populated via batch write.");
+                } catch (e) {
+                    console.error("Error committing initial tasks batch:", e);
+                }
             }
         }
 
